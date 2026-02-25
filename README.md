@@ -151,4 +151,4 @@ Works in any browser with Canvas 2D and ES6 support:
 
 ## License
 
-MIT — free to use, modify, and share.
+GNU General Public Licence v3.0
