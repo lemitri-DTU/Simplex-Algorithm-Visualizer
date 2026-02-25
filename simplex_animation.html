@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simplex Algorithm — Editable</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600&family=Playfair+Display:wght@700&display=swap');
+
+:root {
+  --bg: #0a0e1a;
+  --panel: #0f1628;
+  --border: #1e2d4a;
+  --accent: #00d4ff;
+  --accent2: #ff6b35;
+  --optimal: #00ff88;
+  --text: #c8d8f0;
+  --muted: #4a6080;
+  --error: #ff4466;
+  --input-bg: #070c18;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem 1rem 3rem;
+  background-image:
+    radial-gradient(ellipse at 15% 15%, rgba(0,80,140,0.15) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 85%, rgba(0,180,120,0.08) 0%, transparent 55%);
+}
+
+h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(1.3rem, 3.5vw, 2rem);
+  color: #fff;
+  letter-spacing: 0.02em;
+  margin-bottom: 0.25rem;
+  text-align: center;
+}
+.subtitle {
+  font-size: 0.68rem;
+  color: var(--muted);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.app {
+  display: flex;
+  gap: 1.2rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+  max-width: 1120px;
+}
+
+.canvas-wrap {
+  position: relative;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 0 60px rgba(0,212,255,0.04), inset 0 0 40px rgba(0,0,0,0.3);
+  flex-shrink: 0;
+}
+canvas { display: block; }
+
+.side { width: 285px; flex-shrink: 0; display: flex; flex-direction: column; gap: 0.85rem; }
+
+.box {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1rem 1.1rem;
+}
+.box h3 {
+  font-size: 0.6rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.obj-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.6rem;
+  flex-wrap: wrap;
+}
+.obj-row span { font-size: 0.72rem; color: var(--optimal); white-space: nowrap; }
+
+.num-input {
+  width: 46px;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--optimal);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  padding: 0.25rem 0.3rem;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.num-input:focus { border-color: var(--accent); }
+.num-input.cc { color: var(--accent); }
+.num-input.cr { color: var(--text); width: 52px; }
+
+.cst-row {
+  display: flex;
+  align-items: center;
+  gap: 0.28rem;
+  margin-bottom: 0.42rem;
+}
+.cst-row span { font-size: 0.7rem; color: var(--muted); white-space: nowrap; }
+
+.btn-del {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.68rem;
+  padding: 0.15rem 0.32rem;
+  font-family: 'JetBrains Mono', monospace;
+  transition: all 0.2s;
+}
+.btn-del:hover { border-color: var(--error); color: var(--error); }
+
+.btn-add {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 0.68rem;
+  padding: 0.28rem 0.65rem;
+  font-family: 'JetBrains Mono', monospace;
+  transition: all 0.2s;
+  margin-top: 0.4rem;
+}
+.btn-add:hover { border-color: var(--accent); color: var(--accent); }
+
+.domain-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.68rem;
+  color: var(--muted);
+  margin-top: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.solve-btn {
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.55rem;
+  background: transparent;
+  border: 1px solid var(--accent2);
+  color: var(--accent2);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.solve-btn:hover { background: rgba(255,107,53,0.12); }
+
+.error-msg {
+  font-size: 0.67rem;
+  color: var(--error);
+  margin-top: 0.45rem;
+  min-height: 1rem;
+}
+
+.step-title { font-size: 0.85rem; color: var(--accent); margin-bottom: 0.4rem; font-weight: 600; }
+.step-desc  { font-size: 0.72rem; color: var(--text); line-height: 1.7; opacity: 0.85; }
+
+.v-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.69rem;
+  padding: 0.27rem 0.45rem;
+  border-radius: 3px;
+  border-left: 3px solid transparent;
+  transition: background 0.3s;
+}
+.v-row.current  { background: rgba(255,107,53,0.12); border-left-color: var(--accent2); color: var(--accent2); }
+.v-row.visited  { background: rgba(0,212,255,0.05);  border-left-color: rgba(0,212,255,0.3); color: var(--muted); }
+.v-row.optimal  { background: rgba(0,255,136,0.1);   border-left-color: var(--optimal); color: var(--optimal); }
+.v-row.unvisited { color: var(--muted); }
+.v-row .zv { color: var(--muted); }
+
+.ctrl-row { display: flex; gap: 0.45rem; flex-wrap: wrap; }
+.ctrl-btn {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.67rem;
+  letter-spacing: 0.08em;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  padding: 0.42rem 0.8rem;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+}
+.ctrl-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.ctrl-btn.pri { border-color: var(--accent2); color: var(--accent2); }
+.ctrl-btn.pri:hover:not(:disabled) { background: rgba(255,107,53,0.1); }
+.ctrl-btn:disabled { opacity: 0.3; cursor: default; }
+.step-ind { font-size: 0.62rem; color: var(--muted); text-align: right; margin-top: 0.3rem; }
+
+.legend { display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.66rem; }
+.leg-row { display: flex; align-items: center; gap: 0.42rem; }
+.dot  { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.lseg { width: 22px; height: 2px; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<h1>The Simplex Algorithm</h1>
+<p class="subtitle">Editable Linear Program · Step-by-Step Animation</p>
+
+<div class="app">
+
+  <!-- LEFT: LP Editor -->
+  <div class="side">
+    <div class="box">
+      <h3>Linear Program — Edit &amp; Solve</h3>
+
+      <div class="obj-row">
+        <span>max z =</span>
+        <input class="num-input" id="cx" type="number" value="3" step="0.5">
+        <span>x +</span>
+        <input class="num-input" id="cy" type="number" value="2" step="0.5">
+        <span>y</span>
+      </div>
+
+      <div style="font-size:0.63rem;color:var(--muted);margin-bottom:0.55rem;">Constraints: ax + by ≤ c &nbsp;(add x≥0, y≥0 manually if needed)</div>
+
+      <div id="cstRows"></div>
+      <button class="btn-add" id="addCstBtn">+ Add Constraint</button>
+
+      <div class="domain-row">
+        <span>x ∈ [</span>
+        <input class="num-input" id="domXmin" type="number" value="-2" step="1" style="width:42px">
+        <span>,</span>
+        <input class="num-input" id="domXmax" type="number" value="14" step="1" style="width:42px">
+        <span>]</span>
+      </div>
+      <div class="domain-row">
+        <span>y ∈ [</span>
+        <input class="num-input" id="domYmin" type="number" value="-2" step="1" style="width:42px">
+        <span>,</span>
+        <input class="num-input" id="domYmax" type="number" value="14" step="1" style="width:42px">
+        <span>]</span>
+      </div>
+
+      <div class="error-msg" id="errMsg"></div>
+      <button class="solve-btn" id="solveBtn">▶ Solve &amp; Animate</button>
+    </div>
+
+    <div class="box">
+      <h3>Legend</h3>
+      <div class="legend">
+        <div class="leg-row"><div class="dot" style="background:rgba(0,212,255,0.3);border:2px solid rgba(0,212,255,0.7)"></div>Feasible Region</div>
+        <div class="leg-row"><div class="dot" style="background:#00d4ff"></div>Vertex (BFS)</div>
+        <div class="leg-row"><div class="dot" style="background:#ff6b35"></div>Current Vertex</div>
+        <div class="leg-row"><div class="dot" style="background:#00ff88"></div>Optimal Vertex</div>
+        <div class="leg-row"><div class="lseg" style="background:linear-gradient(90deg,#7800c8,#ff6400,#ffeb00);height:3px;border-radius:2px"></div>Isoprofit Lines (low→high z)</div>
+        <div class="leg-row"><div class="lseg" style="background:rgba(255,107,53,0.9);height:3px"></div>Simplex Path</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER: Canvas -->
+  <div class="canvas-wrap">
+    <canvas id="c" width="500" height="480"></canvas>
+  </div>
+
+  <!-- RIGHT: Info + Controls -->
+  <div class="side">
+
+    <div class="box">
+      <h3>Current Step</h3>
+      <div class="step-title" id="stepTitle">Edit the LP and press Solve</div>
+      <div class="step-desc"  id="stepDesc">Modify the objective function coefficients, add or remove constraints, then click "Solve &amp; Animate".</div>
+    </div>
+
+    <div class="box">
+      <h3 id="vtxHeader">Vertices — objective value</h3>
+      <div id="vtxList" style="display:flex;flex-direction:column;gap:0.32rem;margin-top:0.25rem;"></div>
+    </div>
+
+    <div class="box">
+      <h3>Controls</h3>
+      <div class="ctrl-row">
+        <button class="ctrl-btn" id="prevBtn" disabled>◀ Prev</button>
+        <button class="ctrl-btn pri" id="nextBtn" disabled>Next ▶</button>
+        <button class="ctrl-btn" id="autoBtn" disabled>▶▶ Auto</button>
+        <button class="ctrl-btn" id="rstBtn"  disabled>↺ Reset</button>
+      </div>
+      <div class="step-ind" id="stepInd">—</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  CONSTRAINT STATE
+// ═══════════════════════════════════════════════════════════
+let constraints = [
+  { a:1, b:1, c:8  },
+  { a:2, b:1, c:12 },
+  { a:1, b:2, c:12 },
+];
+
+function renderCstRows() {
+  const cont = document.getElementById('cstRows');
+  cont.innerHTML = '';
+  constraints.forEach((ct, i) => {
+    const row = document.createElement('div');
+    row.className = 'cst-row';
+    row.innerHTML = `
+      <input class="num-input cc" type="number" value="${ct.a}" step="0.5" data-i="${i}" data-f="a">
+      <span>x +</span>
+      <input class="num-input cc" type="number" value="${ct.b}" step="0.5" data-i="${i}" data-f="b">
+      <span>y ≤</span>
+      <input class="num-input cr" type="number" value="${ct.c}" step="0.5" data-i="${i}" data-f="c">
+      <button class="btn-del" data-del="${i}" title="Remove">✕</button>
+    `;
+    cont.appendChild(row);
+  });
+  cont.querySelectorAll('.num-input').forEach(inp => {
+    inp.addEventListener('input', e => {
+      constraints[+e.target.dataset.i][e.target.dataset.f] = parseFloat(e.target.value) || 0;
+    });
+  });
+  cont.querySelectorAll('[data-del]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      constraints.splice(+e.target.dataset.del, 1);
+      renderCstRows();
+    });
+  });
+}
+
+document.getElementById('addCstBtn').addEventListener('click', () => {
+  constraints.push({ a:1, b:1, c:10 });
+  renderCstRows();
+});
+
+renderCstRows();
+
+// ═══════════════════════════════════════════════════════════
+//  GEOMETRY
+// ═══════════════════════════════════════════════════════════
+function lineIntersect(a1,b1,c1,a2,b2,c2) {
+  const det = a1*b2 - a2*b1;
+  if (Math.abs(det) < 1e-10) return null;
+  return { x:(c1*b2-c2*b1)/det, y:(a1*c2-a2*c1)/det };
+}
+
+function isFeasible(pt, csts, tol=1e-7) {
+  return csts.every(c => c.a*pt.x + c.b*pt.y <= c.c + tol);
+}
+
+function convexHull(pts) {
+  if (pts.length < 2) return pts;
+  const cx = pts.reduce((s,p)=>s+p.x,0)/pts.length;
+  const cy = pts.reduce((s,p)=>s+p.y,0)/pts.length;
+  return [...pts].sort((a,b) => Math.atan2(a.y-cy,a.x-cx) - Math.atan2(b.y-cy,b.x-cx));
+}
+
+function computeVertices(csts) {
+  const pts = [];
+  for (let i=0;i<csts.length;i++)
+    for (let j=i+1;j<csts.length;j++) {
+      const p = lineIntersect(csts[i].a,csts[i].b,csts[i].c, csts[j].a,csts[j].b,csts[j].c);
+      if (!p) continue;
+      if (!isFeasible(p, csts)) continue;
+      p.x = Math.round(p.x*1e9)/1e9;
+      p.y = Math.round(p.y*1e9)/1e9;
+      if (!pts.some(q=>Math.abs(q.x-p.x)<1e-6&&Math.abs(q.y-p.y)<1e-6)) pts.push(p);
+    }
+  return pts;
+}
+
+function adjacent(a, b, csts) {
+  const EPS = 1e-6;
+  return csts.filter(l => Math.abs(l.a*a.x+l.b*a.y-l.c)<EPS && Math.abs(l.a*b.x+l.b*b.y-l.c)<EPS).length >= 1;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SIMPLEX SOLVER (vertex-walking, 2D)
+// ═══════════════════════════════════════════════════════════
+function fmt(v) { return `(${+v.x.toFixed(3)}, ${+v.y.toFixed(3)})`; }
+
+function solveSimplex(cx, cy, csts) {
+  const verts = computeVertices(csts);
+  if (verts.length === 0) return { error:'No feasible region found.' };
+
+  const obj = v => cx*v.x + cy*v.y;
+
+  // Start at lowest-objective feasible vertex (initial BFS)
+  const startIdx = verts.reduce((bi,v,i) => obj(v)<obj(verts[bi])?i:bi, 0);
+
+  const visited = new Set([startIdx]);
+  const steps = [{
+    title: 'Step 0 — Initial BFS Vertex',
+    desc: `Start at ${fmt(verts[startIdx])}, z = ${obj(verts[startIdx]).toFixed(4)}.`,
+    currentIdx: startIdx,
+    visitedIdxs: [startIdx],
+    isoZ: obj(verts[startIdx]),
+    pathEdge: null,
+    phase: 'init',
+    testNeighbors: false,
+  }];
+
+  let cur = startIdx;
+  for (let iter=0; iter<50; iter++) {
+    let bestAdj=null, bestZ=obj(verts[cur]);
+    verts.forEach((v,i) => {
+      if (i!==cur && adjacent(verts[cur],v,csts) && obj(v)>bestZ+1e-10) {
+        bestZ=obj(v); bestAdj=i;
+      }
+    });
+
+    if (bestAdj===null) {
+      const neighIdxs = verts.map((_,i)=>i).filter(i=>i!==cur&&adjacent(verts[cur],verts[i],csts));
+      steps.push({
+        title: `Step ${steps.length} — Optimality Check`,
+        desc: `All adjacent vertices have z ≤ ${obj(verts[cur]).toFixed(4)}. No improving direction exists — optimum confirmed!`,
+        currentIdx: cur, visitedIdxs:[...visited], isoZ:obj(verts[cur]),
+        pathEdge:null, phase:'optimal', testNeighbors:true, neighborIdxs:neighIdxs,
+      });
+      steps.push({
+        title: `✓ Optimal Solution`,
+        desc: `Optimal at ${fmt(verts[cur])} with z* = ${obj(verts[cur]).toFixed(4)}.`,
+        currentIdx: cur, visitedIdxs:[...visited], isoZ:obj(verts[cur]),
+        pathEdge:null, phase:'done', testNeighbors:false,
+      });
+      break;
+    }
+
+    const prev = cur;
+    cur = bestAdj;
+    visited.add(cur);
+    steps.push({
+      title: `Step ${steps.length} — Pivot`,
+      desc: `Move from ${fmt(verts[prev])} → ${fmt(verts[cur])}: z = ${obj(verts[prev]).toFixed(4)} → ${obj(verts[cur]).toFixed(4)}.`,
+      currentIdx: cur, visitedIdxs:[...visited], isoZ:obj(verts[cur]),
+      pathEdge:[prev,cur], phase:'pivot', testNeighbors:false,
+    });
+  }
+
+  return { vertices:verts, steps, obj };
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CANVAS
+// ═══════════════════════════════════════════════════════════
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W=canvas.width, H=canvas.height;
+const PAD={l:54,r:18,t:18,b:46};
+const pW=W-PAD.l-PAD.r, pH=H-PAD.t-PAD.b;
+
+let XMIN=-2, XMAX=14, YMIN=-2, YMAX=14;
+function tx(x){ return PAD.l+(x-XMIN)/(XMAX-XMIN)*pW; }
+function ty(y){ return H-PAD.b-(y-YMIN)/(YMAX-YMIN)*pH; }
+function td(v){ return {px:tx(v.x),py:ty(v.y)}; }
+
+// Clip a line cx*x+cy*y=z to the plot box [XMIN,XMAX]x[YMIN,YMAX]
+function isoClip(cx,cy,z) {
+  if(Math.abs(cx)<1e-10&&Math.abs(cy)<1e-10) return null;
+  const E=1e-7;
+  const cands=[];
+  function tryAdd(p){
+    if(p.x>=XMIN-E&&p.x<=XMAX+E&&p.y>=YMIN-E&&p.y<=YMAX+E){
+      if(!cands.some(q=>Math.abs(q.x-p.x)<E*10&&Math.abs(q.y-p.y)<E*10)) cands.push(p);
+    }
+  }
+  if(Math.abs(cy)>E){
+    tryAdd({x:XMIN, y:(z-cx*XMIN)/cy});
+    tryAdd({x:XMAX, y:(z-cx*XMAX)/cy});
+  }
+  if(Math.abs(cx)>E){
+    tryAdd({x:(z-cy*YMIN)/cx, y:YMIN});
+    tryAdd({x:(z-cy*YMAX)/cx, y:YMAX});
+  }
+  if(cands.length<2) return null;
+  return [cands[0],cands[cands.length-1]];
+}
+
+// Clip a constraint line ax+by=c to plot box
+function clipLine(a,b,c){
+  const E=1e-10;
+  const cands=[];
+  function tryAdd(p){
+    if(p.x>=XMIN-E&&p.x<=XMAX+E&&p.y>=YMIN-E&&p.y<=YMAX+E){
+      if(!cands.some(q=>Math.abs(q.x-p.x)<1e-6&&Math.abs(q.y-p.y)<1e-6)) cands.push(p);
+    }
+  }
+  if(Math.abs(b)>E){
+    tryAdd({x:XMIN, y:(c-a*XMIN)/b});
+    tryAdd({x:XMAX, y:(c-a*XMAX)/b});
+  }
+  if(Math.abs(a)>E){
+    tryAdd({x:(c-b*YMIN)/a, y:YMIN});
+    tryAdd({x:(c-b*YMAX)/a, y:YMAX});
+  }
+  return cands.length>=2 ? [cands[0],cands[cands.length-1]] : null;
+}
+
+function drawGrid(){
+  ctx.strokeStyle='rgba(30,45,74,0.7)'; ctx.lineWidth=1;
+  const rangeX=XMAX-XMIN, rangeY=YMAX-YMIN;
+  const sx=rangeX<=12?1:rangeX<=30?2:rangeX<=60?5:10;
+  const sy=rangeY<=12?1:rangeY<=30?2:rangeY<=60?5:10;
+  const x0=Math.ceil(XMIN/sx)*sx, y0=Math.ceil(YMIN/sy)*sy;
+  for(let x=x0;x<=XMAX+1e-9;x+=sx){ctx.beginPath();ctx.moveTo(tx(x),ty(YMIN));ctx.lineTo(tx(x),ty(YMAX));ctx.stroke();}
+  for(let y=y0;y<=YMAX+1e-9;y+=sy){ctx.beginPath();ctx.moveTo(tx(XMIN),ty(y));ctx.lineTo(tx(XMAX),ty(y));ctx.stroke();}
+}
+
+function drawAxes(){
+  ctx.strokeStyle='rgba(74,96,128,0.9)'; ctx.lineWidth=1.5;
+  // x-axis (y=0) if in range
+  if(YMIN<=0&&YMAX>=0){
+    ctx.beginPath();ctx.moveTo(tx(XMIN),ty(0));ctx.lineTo(tx(XMAX),ty(0));ctx.stroke();
+  }
+  // y-axis (x=0) if in range
+  if(XMIN<=0&&XMAX>=0){
+    ctx.beginPath();ctx.moveTo(tx(0),ty(YMIN));ctx.lineTo(tx(0),ty(YMAX));ctx.stroke();
+  }
+  // border
+  ctx.strokeStyle='rgba(30,45,74,0.9)'; ctx.lineWidth=1;
+  ctx.strokeRect(tx(XMIN),ty(YMAX),pW,pH);
+
+  const rangeX=XMAX-XMIN, rangeY=YMAX-YMIN;
+  const sx=rangeX<=12?2:rangeX<=30?5:rangeX<=60?10:20;
+  const sy=rangeY<=12?2:rangeY<=30?5:rangeY<=60?10:20;
+  ctx.fillStyle='rgba(74,96,128,0.8)'; ctx.font='10px JetBrains Mono';
+  const x0=Math.ceil(XMIN/sx)*sx, y0=Math.ceil(YMIN/sy)*sy;
+  ctx.textAlign='center';
+  for(let x=x0;x<=XMAX+1e-9;x+=sx) ctx.fillText(x,tx(x),ty(YMIN)+14);
+  ctx.textAlign='right';
+  for(let y=y0;y<=YMAX+1e-9;y+=sy) ctx.fillText(y,tx(XMIN)-5,ty(y)+3);
+  ctx.fillStyle='rgba(200,216,240,0.7)'; ctx.font='12px JetBrains Mono';
+  ctx.textAlign='center'; ctx.fillText('x',tx(XMAX)+6,ty(YMIN)+14);
+  ctx.fillText('y',tx(XMIN),ty(YMAX)-7);
+}
+
+function drawFeasible(verts){
+  if(!verts||verts.length<3) return;
+  const hull=convexHull(verts);
+  ctx.beginPath();
+  hull.forEach((v,i)=>{const p=td(v);i===0?ctx.moveTo(p.px,p.py):ctx.lineTo(p.px,p.py);});
+  ctx.closePath();
+  ctx.fillStyle='rgba(0,212,255,0.07)'; ctx.fill();
+  ctx.strokeStyle='rgba(0,212,255,0.45)'; ctx.lineWidth=1.5; ctx.setLineDash([]); ctx.stroke();
+}
+
+function drawConstraintLines(csts){
+  ctx.setLineDash([5,4]); ctx.lineWidth=1;
+  csts.forEach(c=>{
+    const pts=clipLine(c.a,c.b,c.c);
+    if(!pts) return;
+    ctx.strokeStyle='rgba(0,212,255,0.22)';
+    const pa=td(pts[0]),pb=td(pts[1]);
+    ctx.beginPath();ctx.moveTo(pa.px,pa.py);ctx.lineTo(pb.px,pb.py);ctx.stroke();
+    const mx=(pts[0].x+pts[1].x)/2, my=(pts[0].y+pts[1].y)/2;
+    const mp=td({x:mx,y:my});
+    ctx.fillStyle='rgba(0,212,255,0.42)'; ctx.font='9px JetBrains Mono'; ctx.textAlign='left';
+    ctx.setLineDash([]);
+    ctx.fillText(`${c.a}x+${c.b}y=${c.c}`,mp.px+4,mp.py-4);
+    ctx.setLineDash([5,4]);
+  });
+  ctx.setLineDash([]);
+}
+
+// Color ramp for isoprofit lines: cool (low z) → warm (high z)
+// purple → magenta → orange → bright yellow
+function isoColor(t) {
+  // t in [0,1], 0=lowest shown, 1=highest shown
+  if (t < 0.33) {
+    const s = t / 0.33;
+    const r = Math.round(120 + s * (220 - 120));
+    const g = Math.round(0 + s * 40);
+    const b = Math.round(200 - s * 30);
+    return {r, g, b};
+  } else if (t < 0.66) {
+    const s = (t - 0.33) / 0.33;
+    const r = Math.round(220 + s * (255 - 220));
+    const g = Math.round(40 + s * (130 - 40));
+    const b = Math.round(170 - s * 170);
+    return {r, g, b};
+  } else {
+    const s = (t - 0.66) / 0.34;
+    const r = 255;
+    const g = Math.round(130 + s * (235 - 130));
+    const b = Math.round(0);
+    return {r, g, b};
+  }
+}
+
+function drawIsoLines(cx, cy, z) {
+  const maxZ = Math.max(
+    Math.abs(cx*XMIN)+Math.abs(cy*YMIN),
+    Math.abs(cx*XMAX)+Math.abs(cy*YMIN),
+    Math.abs(cx*XMIN)+Math.abs(cy*YMAX),
+    Math.abs(cx*XMAX)+Math.abs(cy*YMAX), 1);
+
+  // Draw 7 lines spaced evenly; current z is index 3 (middle)
+  const numLines = 7;
+  const spread = 0.55; // fraction of maxZ to spread across
+  const lines = [];
+  for (let k = 0; k < numLines; k++) {
+    const t = k / (numLines - 1); // 0..1
+    const off = (t - 0.5) * 2 * spread; // -spread..+spread
+    const zi = z + off * maxZ;
+    const pts = isoClip(cx, cy, zi);
+    if (!pts) continue;
+    lines.push({ zi, pts, t, isCur: Math.abs(off) < 0.01 });
+  }
+
+  // Draw colored bands between consecutive lines (fill strips)
+  for (let i = 0; i < lines.length - 1; i++) {
+    const la = lines[i], lb = lines[i + 1];
+    const tMid = (la.t + lb.t) / 2;
+    const col = isoColor(tMid);
+    const pa0 = td(la.pts[0]), pa1 = td(la.pts[1]);
+    const pb0 = td(lb.pts[0]), pb1 = td(lb.pts[1]);
+    ctx.beginPath();
+    ctx.moveTo(pa0.px, pa0.py);
+    ctx.lineTo(pa1.px, pa1.py);
+    ctx.lineTo(pb1.px, pb1.py);
+    ctx.lineTo(pb0.px, pb0.py);
+    ctx.closePath();
+    ctx.fillStyle = `rgba(${col.r},${col.g},${col.b},0.055)`;
+    ctx.fill();
+  }
+
+  // Draw the isoline strokes
+  ctx.setLineDash([]);
+  lines.forEach(({ zi, pts, t, isCur }) => {
+    const col = isoColor(t);
+    const alpha = isCur ? 1.0 : 0.45 + 0.1 * Math.abs(t - 0.5);
+    const lw = isCur ? 2.5 : 1.2;
+    ctx.strokeStyle = `rgba(${col.r},${col.g},${col.b},${alpha})`;
+    ctx.lineWidth = lw;
+    ctx.setLineDash(isCur ? [] : [8, 4]);
+    const pa = td(pts[0]), pb = td(pts[1]);
+    ctx.beginPath(); ctx.moveTo(pa.px, pa.py); ctx.lineTo(pb.px, pb.py); ctx.stroke();
+
+    // Label every other line + always label current
+    if (isCur || t === 0 || t === 1 || Math.abs(t - 0.5) < 0.01) {
+      ctx.setLineDash([]);
+      // Badge background
+      const mx = (pa.px + pb.px) / 2 + 6, my = (pa.py + pb.py) / 2 - 7;
+      const label = `z=${zi.toFixed(1)}`;
+      ctx.font = `${isCur ? 'bold ' : ''}10px JetBrains Mono`;
+      const tw = ctx.measureText(label).width;
+      if (isCur) {
+        ctx.fillStyle = `rgba(${col.r},${col.g},${col.b},0.18)`;
+        ctx.beginPath();
+        ctx.roundRect(mx - 3, my - 11, tw + 6, 15, 3);
+        ctx.fill();
+      }
+      ctx.fillStyle = `rgba(${col.r},${col.g},${col.b},${isCur ? 1 : 0.7})`;
+      ctx.textAlign = 'left';
+      ctx.fillText(label, mx, my);
+    }
+  });
+  ctx.setLineDash([]);
+
+  // Gradient arrow (∇z direction) — placed at center of plot
+  const mag = Math.sqrt(cx * cx + cy * cy) || 1;
+  const sc = 1.3 * Math.min(pW, pH) / (Math.max(XMAX-XMIN, YMAX-YMIN) * mag);
+  const ax = tx((XMIN+XMAX)*0.5), ay = ty((YMIN+YMAX)*0.5);
+  const ex = ax + cx / mag * sc, ey = ay - cy / mag * sc;
+
+  // Arrow shaft with gradient color
+  const grad = ctx.createLinearGradient(ax, ay, ex, ey);
+  grad.addColorStop(0, 'rgba(120,0,200,0.7)');
+  grad.addColorStop(0.5, 'rgba(255,100,0,0.8)');
+  grad.addColorStop(1, 'rgba(255,235,0,0.9)');
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(ex, ey); ctx.stroke();
+
+  const ang = Math.atan2(-(ey - ay), ex - ax);
+  ctx.fillStyle = 'rgba(255,235,0,0.9)';
+  ctx.beginPath();
+  ctx.moveTo(ex, ey);
+  ctx.lineTo(ex - 10 * Math.cos(ang - 0.38), ey + 10 * Math.sin(ang - 0.38));
+  ctx.lineTo(ex - 10 * Math.cos(ang + 0.38), ey + 10 * Math.sin(ang + 0.38));
+  ctx.closePath(); ctx.fill();
+
+  // "∇z" label near arrowhead
+  ctx.fillStyle = 'rgba(255,235,0,0.75)';
+  ctx.font = 'bold 11px JetBrains Mono';
+  ctx.textAlign = 'left';
+  ctx.fillText('∇z', ex + 5, ey - 5);
+}
+
+function drawPath(steps,si){
+  for(let i=1;i<=si;i++){
+    const s=steps[i];
+    if(!s.pathEdge) continue;
+    const [ai,bi]=s.pathEdge;
+    const pa=td(VERTICES[ai]),pb=td(VERTICES[bi]);
+    const isCur=i===si;
+    ctx.strokeStyle=isCur?'rgba(255,107,53,0.85)':'rgba(255,107,53,0.28)';
+    ctx.lineWidth=isCur?3:1.5;
+    ctx.setLineDash(isCur?[]:[4,3]);
+    ctx.beginPath();ctx.moveTo(pa.px,pa.py);ctx.lineTo(pb.px,pb.py);ctx.stroke();
+    if(isCur){
+      const ang=Math.atan2(pb.py-pa.py,pb.px-pa.px);
+      ctx.setLineDash([]); ctx.fillStyle='rgba(255,107,53,0.9)';
+      ctx.beginPath();
+      ctx.moveTo(pb.px,pb.py);
+      ctx.lineTo(pb.px-11*Math.cos(ang-0.4),pb.py-11*Math.sin(ang-0.4));
+      ctx.lineTo(pb.px-11*Math.cos(ang+0.4),pb.py-11*Math.sin(ang+0.4));
+      ctx.closePath();ctx.fill();
+    }
+  }
+  ctx.setLineDash([]);
+}
+
+function drawVertices(step){
+  VERTICES.forEach((v,i)=>{
+    const p=td(v);
+    const isCur=i===step.currentIdx;
+    const isVis=step.visitedIdxs.includes(i);
+    const isOpt=(step.phase==='optimal'||step.phase==='done')&&isCur;
+    const r=isCur?9:6;
+    if(isCur){
+      const col=isOpt?'0,255,136':'255,107,53';
+      const g=ctx.createRadialGradient(p.px,p.py,0,p.px,p.py,20);
+      g.addColorStop(0,`rgba(${col},0.3)`);g.addColorStop(1,'transparent');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.px,p.py,20,0,Math.PI*2);ctx.fill();
+    }
+    ctx.beginPath();ctx.arc(p.px,p.py,r,0,Math.PI*2);
+    ctx.fillStyle=isOpt?'#00ff88':isCur?'#ff6b35':isVis?'rgba(0,212,255,0.5)':'rgba(74,96,128,0.45)';
+    ctx.fill();
+    ctx.strokeStyle=isOpt?'#00ff88':isCur?'#ff6b35':'rgba(0,212,255,0.55)';
+    ctx.lineWidth=2;ctx.stroke();
+    const lx=p.px+(v.x<(XMIN+XMAX)/2?-48:10), ly=p.py+(v.y<(YMIN+YMAX)/2?14:-6);
+    ctx.fillStyle=isCur?'#fff':'rgba(200,216,240,0.65)';
+    ctx.font=`${isCur?'bold ':''}10px JetBrains Mono`; ctx.textAlign='left';
+    ctx.fillText(`(${+v.x.toFixed(2)},${+v.y.toFixed(2)})`,lx,ly);
+  });
+}
+
+function drawNeighborTest(step){
+  if(!step.testNeighbors||!step.neighborIdxs) return;
+  const cur=VERTICES[step.currentIdx];
+  step.neighborIdxs.forEach(ni=>{
+    const nb=VERTICES[ni];
+    const pa=td(cur),pb=td(nb);
+    ctx.strokeStyle='rgba(255,80,80,0.22)'; ctx.lineWidth=1.5; ctx.setLineDash([3,4]);
+    ctx.beginPath();ctx.moveTo(pa.px,pa.py);ctx.lineTo(pb.px,pb.py);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='rgba(255,80,80,0.7)'; ctx.font='bold 13px JetBrains Mono'; ctx.textAlign='center';
+    ctx.fillText('✗',(pa.px+pb.px)/2,(pa.py+pb.py)/2);
+  });
+  ctx.setLineDash([]);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  APP STATE
+// ═══════════════════════════════════════════════════════════
+let VERTICES=[], STEPS=[];
+let OBJ_CX=3, OBJ_CY=2;
+let stepIdx=0, autoTimer=null, lastT=0;
+
+function render(t){
+  requestAnimationFrame(render);
+  if(t-lastT<16) return;
+  lastT=t;
+  ctx.clearRect(0,0,W,H);
+
+  if(STEPS.length===0){
+    drawGrid();drawAxes();
+    ctx.fillStyle='rgba(74,96,128,0.5)'; ctx.font='13px JetBrains Mono'; ctx.textAlign='center';
+    ctx.fillText('Press  "Solve & Animate"  to start',W/2,H/2);
+    return;
+  }
+
+  const step=STEPS[stepIdx];
+  drawGrid();drawAxes();
+  drawConstraintLines(constraints);
+  drawFeasible(VERTICES);
+  drawIsoLines(OBJ_CX,OBJ_CY,step.isoZ);
+  drawPath(STEPS,stepIdx);
+  drawVertices(step);
+  drawNeighborTest(step);
+  updateInfoUI(step);
+}
+
+function updateInfoUI(step){
+  document.getElementById('stepTitle').textContent=step.title;
+  document.getElementById('stepDesc').textContent=step.desc;
+  document.getElementById('stepInd').textContent=`Step ${stepIdx} / ${STEPS.length-1}`;
+  const list=document.getElementById('vtxList');
+  list.innerHTML='';
+  VERTICES.forEach((v,i)=>{
+    const z=OBJ_CX*v.x+OBJ_CY*v.y;
+    const isCur=i===step.currentIdx;
+    const isVis=step.visitedIdxs.includes(i);
+    const isOpt=(step.phase==='optimal'||step.phase==='done')&&isCur;
+    const cls=isOpt?'optimal':isCur?'current':isVis?'visited':'unvisited';
+    const tag=isOpt?' ★':isCur?' ◀':'';
+    list.innerHTML+=`<div class="v-row ${cls}"><span>(${+v.x.toFixed(3)},${+v.y.toFixed(3)})${tag}</span><span class="zv">z=${z.toFixed(2)}</span></div>`;
+  });
+}
+
+function setCtrl(en){
+  ['prevBtn','nextBtn','autoBtn','rstBtn'].forEach(id=>document.getElementById(id).disabled=!en);
+}
+
+function goTo(i){ stepIdx=Math.max(0,Math.min(STEPS.length-1,i)); }
+
+document.getElementById('prevBtn').addEventListener('click',()=>goTo(stepIdx-1));
+document.getElementById('nextBtn').addEventListener('click',()=>goTo(stepIdx+1));
+document.getElementById('rstBtn').addEventListener('click',()=>{clearInterval(autoTimer);autoTimer=null;goTo(0);});
+document.getElementById('autoBtn').addEventListener('click',()=>{
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;document.getElementById('autoBtn').textContent='▶▶ Auto';return;}
+  goTo(0); document.getElementById('autoBtn').textContent='⏸ Pause';
+  autoTimer=setInterval(()=>{
+    if(stepIdx>=STEPS.length-1){clearInterval(autoTimer);autoTimer=null;document.getElementById('autoBtn').textContent='▶▶ Auto';return;}
+    goTo(stepIdx+1);
+  },1800);
+});
+
+document.getElementById('solveBtn').addEventListener('click',()=>{
+  clearInterval(autoTimer);autoTimer=null;
+  document.getElementById('autoBtn').textContent='▶▶ Auto';
+  const cx=parseFloat(document.getElementById('cx').value);
+  const cy=parseFloat(document.getElementById('cy').value);
+  const xmin=parseFloat(document.getElementById('domXmin').value);
+  const xmax=parseFloat(document.getElementById('domXmax').value);
+  const ymin=parseFloat(document.getElementById('domYmin').value);
+  const ymax=parseFloat(document.getElementById('domYmax').value);
+  const err=document.getElementById('errMsg');
+  err.textContent='';
+  if(isNaN(cx)||isNaN(cy)){err.textContent='Objective coefficients must be numbers.';return;}
+  if(isNaN(xmin)||isNaN(xmax)||isNaN(ymin)||isNaN(ymax)){err.textContent='Domain bounds must be numbers.';return;}
+  if(xmin>=xmax){err.textContent='x min must be less than x max.';return;}
+  if(ymin>=ymax){err.textContent='y min must be less than y max.';return;}
+  if(constraints.length===0){err.textContent='Add at least one constraint.';return;}
+  if(constraints.some(c=>isNaN(c.a)||isNaN(c.b)||isNaN(c.c))){err.textContent='All constraint values must be numbers.';return;}
+  XMIN=xmin; XMAX=xmax; YMIN=ymin; YMAX=ymax;
+  const result=solveSimplex(cx,cy,constraints);
+  if(result.error){err.textContent=result.error;return;}
+  if(result.vertices.length<2){err.textContent='Feasible region is empty or unbounded — try adjusting constraints or plot range.';return;}
+  OBJ_CX=cx;OBJ_CY=cy;
+  VERTICES=result.vertices;
+  STEPS=result.steps;
+  stepIdx=0;
+  document.getElementById('vtxHeader').textContent=`Vertices — z = ${cx}x + ${cy}y`;
+  setCtrl(true);
+});
+
+requestAnimationFrame(render);
+</script>
+</body>
+</html>
